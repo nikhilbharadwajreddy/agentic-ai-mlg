@@ -1,29 +1,29 @@
 # Web Framework
 fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.30.0
-pydantic>=2.9.0
+pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0
 
 # GCP Services
 google-cloud-aiplatform>=1.70.0
-google-cloud-firestore==2.14.0
-google-cloud-secret-manager==2.18.1
-google-cloud-dlp==3.15.1
-google-cloud-logging==3.9.0
+google-cloud-firestore>=2.14.0
+google-cloud-secret-manager>=2.22.0
+google-cloud-dlp>=3.15.1
+google-cloud-logging>=3.9.0
 
 # ADK (Agent Development Kit)
 google-adk>=1.17.0
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-PyJWT==2.8.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+PyJWT>=2.8.0
 
 # Utilities
-python-dotenv==1.0.0
-httpx==0.26.0
+python-dotenv>=1.0.0
+httpx>=0.26.0
 
 # Email & Phone Validation
-sendgrid==6.11.0
-phonenumbers==8.13.26
+sendgrid>=6.11.0
+phonenumbers>=8.13.26

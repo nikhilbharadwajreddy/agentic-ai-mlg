@@ -67,6 +67,7 @@ class UserState(BaseModel):
     
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
 
 
 # ============================================
