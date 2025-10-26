@@ -1,0 +1,108 @@
+"""
+Admin API Endpoints
+
+Add these to main.py before exception handler.
+"""
+
+from typing import List
+from pydantic import BaseModel
+from .services.admin_service import AdminService
+from .appointment_models import Employee, TimeSlot, Appointment
+
+# Add to globals
+admin_service: Optional[AdminService] = None
+
+# Add to lifespan initialization
+# admin_service = AdminService(firestore.Client(project=project_id))
+
+
+# ===== REQUEST MODELS =====
+
+class CreateEmployeeRequest(BaseModel):
+    name: str
+    role: str
+    email: str
+
+
+class CreateSlotRequest(BaseModel):
+    employee_id: str
+    date: str  # YYYY-MM-DD
+    start_time: str  # HH:MM
+    end_time: str  # HH:MM
+
+
+# ===== ADMIN ENDPOINTS =====
+
+@app.post("/api/v1/admin/employees")
+async def create_employee(req: CreateEmployeeRequest):
+    """Create new employee/sales rep."""
+    try:
+        employee = admin_service.create_employee(
+            name=req.name,
+            role=req.role,
+            email=req.email
+        )
+        return {"success": True, "employee": employee.model_dump()}
+    except Exception as e:
+        logger.error(f"Create employee error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/admin/employees")
+async def list_employees():
+    """List all active employees."""
+    try:
+        employees = admin_service.list_employees()
+        return {"employees": [e.model_dump() for e in employees]}
+    except Exception as e:
+        logger.error(f"List employees error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/admin/slots")
+async def create_time_slot(req: CreateSlotRequest):
+    """Add available time slot for employee."""
+    try:
+        slot = admin_service.add_time_slot(
+            employee_id=req.employee_id,
+            date=req.date,
+            start_time=req.start_time,
+            end_time=req.end_time
+        )
+        return {"success": True, "slot": slot.model_dump()}
+    except Exception as e:
+        logger.error(f"Create slot error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/admin/slots/{employee_id}")
+async def get_employee_slots(employee_id: str, date: Optional[str] = None):
+    """Get available slots for employee."""
+    try:
+        slots = admin_service.get_available_slots(employee_id, date)
+        return {"slots": [s.model_dump() for s in slots]}
+    except Exception as e:
+        logger.error(f"Get slots error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/admin/appointments")
+async def get_all_appointments(status: Optional[str] = None):
+    """Get all appointments (admin view)."""
+    try:
+        appointments = admin_service.get_all_appointments(status)
+        return {"appointments": [a.model_dump() for a in appointments]}
+    except Exception as e:
+        logger.error(f"Get appointments error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/v1/admin/appointments/{appointment_id}")
+async def cancel_appointment(appointment_id: str):
+    """Cancel an appointment."""
+    try:
+        success = admin_service.cancel_appointment(appointment_id)
+        return {"success": success}
+    except Exception as e:
+        logger.error(f"Cancel appointment error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

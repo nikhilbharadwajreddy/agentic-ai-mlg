@@ -1,0 +1,223 @@
+# GCP SETUP FOR VERTEX AI AGENT
+
+## WHAT YOU NEED TO DO IN GCP CONSOLE
+
+### 1. CREATE VERTEX AI AGENT (Reasoning Engine)
+
+**Location:** Vertex AI > Agent Builder > Create Agent
+
+**Agent Details:**
+- Name: `mlground-assistant`
+- Type: Reasoning Engine
+- Location: `us-central1`
+
+**Agent Instructions:**
+```
+You are an AI assistant for MLGround, a machine learning solutions company.
+
+Your role:
+- Help customers book demo appointments with our sales reps
+- Answer questions about MLGround's services and capabilities
+- Be professional, friendly, and helpful
+
+MLGround provides:
+- Custom ML model development
+- ML infrastructure consulting
+- AI strategy and implementation
+- Training and workshops
+
+When customers want to book appointments:
+1. Show available employees
+2. Let them choose who to meet with
+3. Show available time slots
+4. Book the appointment
+
+Always confirm details before booking.
+```
+
+**Tools to Add:**
+
+1. **list_employees** (OpenAPI/Function)
+```json
+{
+  "name": "list_employees",
+  "description": "Get list of available sales reps and team members",
+  "parameters": {
+    "type": "object",
+    "properties": {}
+  }
+}
+```
+
+2. **get_employee_availability** (OpenAPI/Function)
+```json
+{
+  "name": "get_employee_availability",
+  "description": "Get available time slots for a specific employee",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "employee_id": {
+        "type": "string",
+        "description": "ID of the employee"
+      },
+      "date": {
+        "type": "string",
+        "description": "Date in YYYY-MM-DD format (optional)"
+      }
+    },
+    "required": ["employee_id"]
+  }
+}
+```
+
+3. **book_appointment** (OpenAPI/Function)
+```json
+{
+  "name": "book_appointment",
+  "description": "Book an appointment with an employee",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "employee_id": {
+        "type": "string",
+        "description": "ID of the employee to meet with"
+      },
+      "date": {
+        "type": "string",
+        "description": "Date in YYYY-MM-DD format"
+      },
+      "time": {
+        "type": "string",
+        "description": "Time in HH:MM format (24-hour)"
+      }
+    },
+    "required": ["employee_id", "date", "time"]
+  }
+}
+```
+
+**After Creation:**
+- Copy the Agent Resource Name (format: `projects/PROJECT_ID/locations/us-central1/reasoningEngines/AGENT_ID`)
+- Update `vertex_agent_client.py` line 22: Set `self.agent_id = "YOUR_AGENT_RESOURCE_NAME"`
+
+---
+
+### 2. CREATE FIRESTORE COLLECTIONS
+
+**Collections to create:**
+
+1. **employees**
+   - No setup needed, will auto-create on first write
+
+2. **time_slots**
+   - No setup needed, will auto-create on first write
+   - Composite index: employee_id (ASC) + is_booked (ASC) + date (ASC)
+
+3. **appointments**
+   - No setup needed, will auto-create on first write
+   - Composite index: date (ASC) + time (ASC)
+
+**Create indexes:**
+```bash
+# From Cloud Shell or local terminal
+gcloud firestore indexes composite create \
+  --collection-group=time_slots \
+  --field-config field-path=employee_id,order=ASCENDING \
+  --field-config field-path=is_booked,order=ASCENDING \
+  --field-config field-path=date,order=ASCENDING \
+  --project=agentic-ai-mlg
+
+gcloud firestore indexes composite create \
+  --collection-group=appointments \
+  --field-config field-path=date,order=ASCENDING \
+  --field-config field-path=time,order=ASCENDING \
+  --project=agentic-ai-mlg
+```
+
+---
+
+### 3. GIVE SERVICE ACCOUNT ACCESS TO VERTEX AI
+
+```bash
+gcloud projects add-iam-policy-binding agentic-ai-mlg \
+  --member="serviceAccount:orchestrator-sa@agentic-ai-mlg.iam.gserviceaccount.com" \
+  --role="roles/aiplatform.user"
+```
+
+---
+
+## TESTING ADMIN APIs
+
+### 1. Create Employee
+```bash
+curl -X POST http://localhost:8080/api/v1/admin/employees \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sarah Johnson",
+    "role": "Senior Sales Rep",
+    "email": "sarah@mlground.com"
+  }'
+```
+
+### 2. Add Availability
+```bash
+curl -X POST http://localhost:8080/api/v1/admin/slots \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_id": "emp_XXXXX",
+    "date": "2025-11-01",
+    "start_time": "09:00",
+    "end_time": "09:30"
+  }'
+```
+
+### 3. View Appointments
+```bash
+curl http://localhost:8080/api/v1/admin/appointments
+```
+
+---
+
+## TESTING CUSTOMER FLOW
+
+1. **Complete Auth** (terms → name → email → phone → OTP)
+
+2. **Chat with Agent:**
+```bash
+curl -X POST http://localhost:8080/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "verified_user_123",
+    "message": "I want to book a demo"
+  }'
+```
+
+Agent will guide customer through booking.
+
+---
+
+## FILES MODIFIED
+
+**New Files:**
+- orchestrator/appointment_models.py (40 lines)
+- orchestrator/vertex_agent_client.py (80 lines)
+- orchestrator/services/admin_service.py (200 lines)
+
+**Modified Files:**
+- orchestrator/state_machine.py (added agent, changed 1 method)
+- orchestrator/main.py (added admin endpoints ~100 lines)
+
+**Total New Code:** ~420 lines
+**Code Removed:** 0 (kept existing auth flow intact)
+
+---
+
+## NEXT STEPS
+
+1. ✅ Run locally: `python -m orchestrator.main`
+2. ✅ Create employees via admin API
+3. ✅ Add availability slots
+4. ✅ Complete customer auth flow
+5. ✅ Test agent conversation
+6. ✅ Deploy to Cloud Run

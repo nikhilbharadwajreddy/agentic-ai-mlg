@@ -1,0 +1,25 @@
+# Environment variables (contains sensitive config)
+.env
+
+# Backup files
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp

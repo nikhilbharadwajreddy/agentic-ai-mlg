@@ -1,0 +1,59 @@
+# Cloud Build configuration for automated deployment
+# This file defines how to build and deploy the service
+
+steps:
+  # Step 1: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:$SHORT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:latest'
+      - '.'
+
+  # Step 2: Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:$SHORT_SHA'
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'orchestrator-service'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--service-account'
+      - 'orchestrator-sa@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=$PROJECT_ID,GCP_REGION=us-central1,ENVIRONMENT=production'
+      - '--max-instances'
+      - '10'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300'
+      - '--allow-unauthenticated'
+
+# Images to push to registry
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:$SHORT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/agentic-ai-mlg/orchestrator:latest'
+
+# Build timeout
+timeout: '1200s'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
